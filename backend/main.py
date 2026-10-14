@@ -1,11 +1,15 @@
-"""API FastAPI de la gestion de location de véhicules (base PostgreSQL sur Supabase).
+"""API FastAPI de la gestion de location de véhicules (base PostgreSQL).
 
 Toute la logique métier est dans la base (procédures, triggers, rôles, vues).
 Ce fichier ne fait que relayer : chaque profil se connecte avec SON utilisateur SQL
 (agent_alice ou controleur_bob), donc c'est PostgreSQL qui applique les droits,
 pas Python. La clé SUPABASE_KEY n'est utilisée que pour la route de santé.
+
+Lancer :  cd backend  puis  python main.py   (ou  uvicorn main:app --reload)
 """
+import asyncio
 import os
+import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlencode
@@ -17,6 +21,10 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from psycopg.rows import dict_row
+
+# psycopg (mode asynchrone) ne fonctionne pas avec la boucle par défaut de Windows
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 load_dotenv()
 
@@ -83,7 +91,8 @@ async def db_health() -> dict[str, str]:
 async def connexion(profil: str) -> psycopg.AsyncConnection:
     """Ouvre une connexion PostgreSQL avec l'utilisateur SQL du profil.
 
-    Direct          : DB_HOST=db.<ref>.supabase.co      DB_USER_SUFFIX vide
+    Local (Docker)  : DB_HOST=127.0.0.1  DB_PORT=5433  DB_SSLMODE=disable
+    Direct Supabase : DB_HOST=db.<ref>.supabase.co      DB_USER_SUFFIX vide
     Pooler Supabase : DB_HOST=aws-0-<region>.pooler.supabase.com
                       DB_USER_SUFFIX=.<ref>  (l'utilisateur devient agent_alice.<ref>)
     """
@@ -223,3 +232,9 @@ async def panne(vehicule_id: int):
 @app.post("/service/{vehicule_id}")
 async def service(vehicule_id: int):
     return await appeler("CALL remettre_en_service(%s::int)", (vehicule_id,), "Véhicule remis en service.")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
