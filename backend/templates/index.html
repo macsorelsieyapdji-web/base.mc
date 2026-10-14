@@ -3,121 +3,223 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Parc de location · {{ 'Agent' if mode == 'agent' else 'Contrôle' }}</title>
+<title>Roulez · {{ 'Réservation' if mode == 'agent' else 'Contrôle' }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+{% set icones = {'Voiture': '🚗', 'Utilitaire': '🚐', 'Scooter': '🛵', 'Trottinette électrique': '🛴', 'Vélo': '🚲', 'Vélo électrique': '🚴'} %}
+{% set teintes = {'Voiture': '#ffe9dc', 'Utilitaire': '#e4ecff', 'Scooter': '#fff3cf', 'Trottinette électrique': '#dcf7ea', 'Vélo': '#f1e4ff', 'Vélo électrique': '#d9f4fb'} %}
+{% set etats = {'disponible': 'Disponible', 'loue': 'Loué', 'maintenance': 'En maintenance', 'hors_service': 'Hors service'} %}
 <style>
   :root {
-    --fond: #eef1ee;
-    --papier: #ffffff;
-    --encre: #1d2a26;
-    --discret: #5d6b66;
-    --trait: #cfd8d3;
-    --accent: #0f5c4d;
-    --ok: #1f7a4d;     --ok-fond: #dff2e6;
-    --loue: #8a5a00;   --loue-fond: #fbebc8;
-    --ko: #a12a2a;     --ko-fond: #f8dcdc;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --fond: #141b18; --papier: #1c2622; --encre: #e6eee9; --discret: #9fb0a8;
-      --trait: #2f3d37; --accent: #5fc9ae;
-      --ok: #7fdca7; --ok-fond: #1b3a2a;
-      --loue: #f0c36a; --loue-fond: #3d3216;
-      --ko: #f29a9a; --ko-fond: #432020;
-    }
+    --encre: #0e1116; --nuit: #161b25; --fond: #f3f4f6; --carte: #fff; --trait: #e3e6ea; --discret: #667085;
+    --orange: #ff5f00; --orange-clair: #fff0e6;
+    --ok: #0f9d58; --ok-fond: #e2f6ea; --loue: #b45309; --loue-fond: #fdf0d5; --ko: #c62828; --ko-fond: #fde7e7;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--fond); color: var(--encre);
-         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  header { background: var(--accent); color: #fff; padding: 14px 24px;
-           display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: .2px; }
-  header nav { display: flex; gap: 6px; margin-left: auto; }
-  header a { color: #fff; text-decoration: none; padding: 6px 12px; border-radius: 6px; opacity: .8; }
-  header a.actif, header a:hover { opacity: 1; background: rgba(255,255,255,.18); }
-  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
-    outline: 3px solid #f2b705; outline-offset: 2px; }
-  main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 48px; display: grid; gap: 20px; }
-  section { background: var(--papier); border: 1px solid var(--trait); border-radius: 8px; padding: 16px 18px; }
-  h2 { margin: 0 0 12px; font-size: 17px; }
-  .note { color: var(--discret); margin: -6px 0 12px; font-size: 14px; }
+  body { margin: 0; background: var(--fond); color: var(--encre); font: 15px/1.5 Sora, system-ui, "Segoe UI", sans-serif; }
+  a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+  .cadre { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* Vitrine */
+  .hero { background: radial-gradient(900px 420px at 85% 70%, rgba(255,95,0,.38), transparent 60%),
+                      linear-gradient(160deg, var(--encre), var(--nuit) 70%); color: #fff; overflow: hidden; }
+  .hero.court { padding-bottom: 90px; }
+  .bar { display: flex; align-items: center; gap: 16px; padding: 20px 0; }
+  .marque { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: .5px; }
+  .marque i { width: 34px; height: 34px; border-radius: 10px; background: var(--orange); display: grid; place-items: center; font-style: normal; }
+  nav { margin-left: auto; display: flex; gap: 6px; }
+  nav a { color: #c9cfd9; text-decoration: none; padding: 8px 16px; border-radius: 99px; font-weight: 600; font-size: 14px; }
+  nav a.actif { background: #fff; color: var(--encre); }
+  nav a:not(.actif):hover { color: #fff; background: rgba(255,255,255,.1); }
+  .vitrine { display: grid; grid-template-columns: 1.05fr 1fr; align-items: center; gap: 10px; padding: 26px 0 110px; }
+  .vitrine h1 { margin: 0 0 14px; font-size: clamp(36px, 5.4vw, 66px); line-height: 1.02; font-weight: 800; letter-spacing: -1.5px; }
+  .vitrine h1 em { font-style: normal; color: var(--orange); }
+  .vitrine p { margin: 0; color: #b6bdca; max-width: 46ch; font-size: 16px; }
+  .vitrine svg { width: 100%; height: auto; filter: drop-shadow(0 30px 40px rgba(0,0,0,.5)); }
+  .titre-court { margin: 0; padding: 6px 0 4px; font-size: clamp(30px, 4vw, 46px); font-weight: 800; letter-spacing: -1px; }
+  .sous-titre { margin: 0; color: #b6bdca; }
+  @media (max-width: 800px) { .vitrine { grid-template-columns: 1fr; padding-bottom: 90px; } .vitrine svg { order: -1; } }
+
+  /* Barre de réservation qui flotte sur la vitrine */
+  .reserver { margin-top: -78px; position: relative; background: var(--carte); border-radius: 22px; padding: 22px 24px;
+              box-shadow: 0 24px 60px rgba(14,17,22,.22); border: 1px solid var(--trait); }
+  .reserver h2 { margin: 0 0 2px; font-size: 20px; font-weight: 800; }
+  .note { margin: 0 0 16px; color: var(--discret); font-size: 14px; }
+  form.ligne { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  label { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color: var(--discret); }
+  input { font: inherit; font-size: 15px; font-weight: 600; padding: 12px 14px; border: 1.5px solid var(--trait); border-radius: 12px; background: #fafbfc; color: var(--encre); }
+  input[type=number] { width: 140px; }
+  input:focus { border-color: var(--orange); background: #fff; }
+  button { font: inherit; font-weight: 700; cursor: pointer; border: 0; border-radius: 12px; padding: 13px 26px; background: var(--orange); color: #fff; }
+  button:hover { filter: brightness(1.08); }
+  button.petit { padding: 7px 14px; font-size: 13px; background: var(--orange-clair); color: var(--orange); }
+  button.petit:hover { background: var(--orange); color: #fff; }
+
+  main { display: grid; gap: 34px; padding: 30px 0 70px; }
+  .bloc h2.t { margin: 0 0 4px; font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+  .bloc .note { margin-bottom: 16px; }
+  .msg { border-radius: 14px; padding: 14px 18px; font-weight: 600; border: 1px solid; margin-top: 22px; }
+  .msg.ok { background: var(--ok-fond); color: var(--ok); border-color: var(--ok); }
+  .msg.err { background: var(--ko-fond); color: var(--ko); border-color: var(--ko); }
+
+  /* Filtres */
+  .filtres { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+  .filtres a { text-decoration: none; color: var(--encre); background: var(--carte); border: 1px solid var(--trait); padding: 8px 18px; border-radius: 99px; font-weight: 600; font-size: 14px; }
+  .filtres a.actif { background: var(--encre); color: #fff; border-color: var(--encre); }
+  .filtres a:not(.actif):hover { border-color: var(--orange); color: var(--orange); }
+
+  /* Cartes véhicules */
+  .parc { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 22px; }
+  .vehicule { background: var(--carte); border-radius: 20px; border: 1px solid var(--trait); overflow: hidden; display: grid; transition: transform .2s, box-shadow .2s; }
+  .vehicule:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(14,17,22,.12); }
+  .vitre { position: relative; height: 130px; display: grid; place-items: center; font-size: 68px; }
+  .etat { position: absolute; top: 12px; left: 12px; font-size: 12px; font-weight: 700; padding: 4px 11px; border-radius: 99px; display: flex; align-items: center; gap: 6px; background: #fff; }
+  .etat::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .etat.disponible { color: var(--ok); } .etat.loue { color: var(--loue); } .etat.maintenance, .etat.hors_service { color: var(--ko); }
+  .corps { padding: 16px 18px 18px; display: grid; gap: 10px; }
+  .nom { font-size: 19px; font-weight: 800; letter-spacing: -.3px; line-height: 1.15; }
+  .sous { color: var(--discret); font-size: 13px; }
+  .rang { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .prix { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+  .prix small { font-size: 13px; font-weight: 600; color: var(--discret); letter-spacing: 0; }
+  .plaque { display: inline-flex; border: 2px solid var(--encre); border-radius: 6px; overflow: hidden; background: #fff; font-weight: 800; font-size: 12px; letter-spacing: 1.2px; }
+  .plaque::before { content: "F"; background: #1f3fd1; color: #fff; font-size: 8px; padding: 5px 4px; display: grid; align-items: end; }
+  .plaque span { padding: 5px 8px; }
+  .retour { color: var(--discret); font-size: 13px; }
+
+  /* Tableaux */
+  .tableau { background: var(--carte); border: 1px solid var(--trait); border-radius: 20px; padding: 8px 18px 12px; }
   .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--trait); white-space: nowrap; }
-  th { color: var(--discret); font-weight: 600; }
+  th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--trait); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { color: var(--discret); font-weight: 600; font-size: 12px; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .puce { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 13px; font-weight: 600; }
-  .disponible { background: var(--ok-fond); color: var(--ok); }
-  .loue { background: var(--loue-fond); color: var(--loue); }
+  .vide { color: var(--discret); padding: 14px 0; }
+  .puce { display: inline-block; padding: 3px 11px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .disponible { background: var(--ok-fond); color: var(--ok); } .loue { background: var(--loue-fond); color: var(--loue); }
   .maintenance, .hors_service { background: var(--ko-fond); color: var(--ko); }
-  .retard { color: var(--ko); font-weight: 600; }
-  form.ligne { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
-  label { display: grid; gap: 3px; font-size: 13px; color: var(--discret); }
-  input, select { font: inherit; padding: 7px 9px; border: 1px solid var(--trait); border-radius: 6px;
-                  background: var(--papier); color: var(--encre); }
-  button { font: inherit; cursor: pointer; border: 0; border-radius: 6px; padding: 8px 14px;
-           background: var(--accent); color: #fff; font-weight: 600; }
-  button.petit { padding: 3px 10px; font-size: 13px; background: transparent; color: var(--accent);
-                 border: 1px solid var(--accent); }
-  .messages { display: grid; gap: 8px; }
-  .msg { padding: 10px 14px; border-radius: 6px; font-weight: 500; }
-  .msg.ok { background: var(--ok-fond); color: var(--ok); }
-  .msg.err { background: var(--ko-fond); color: var(--ko); }
-  .filtres a { margin-right: 10px; color: var(--accent); }
-  .filtres a.actif { font-weight: 700; text-decoration: none; }
-  .vide { color: var(--discret); font-style: italic; padding: 8px 0; }
-  .deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
-  @media (prefers-reduced-motion: no-preference) { button { transition: filter .15s; } button:hover { filter: brightness(1.12); } }
+  .retard { color: var(--ko); font-weight: 700; font-size: 12px; background: var(--ko-fond); padding: 2px 8px; border-radius: 99px; }
+
+  /* Contrôle */
+  .chiffres { margin-top: -62px; position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+  .chiffre { background: var(--carte); border: 1px solid var(--trait); border-radius: 20px; padding: 18px 20px; box-shadow: 0 14px 34px rgba(14,17,22,.12); }
+  .chiffre b { display: block; font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+  .chiffre span { color: var(--discret); font-size: 13px; }
+  .chiffre.fort { background: var(--orange); border-color: var(--orange); } .chiffre.fort b, .chiffre.fort span { color: #fff; }
+  .barre { height: 8px; min-width: 130px; background: var(--trait); border-radius: 99px; overflow: hidden; }
+  .barre i { display: block; height: 100%; background: var(--orange); border-radius: 99px; }
+  .deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 28px; }
+  @media (prefers-reduced-motion: reduce) { .vehicule { transition: none; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Parc de location</h1>
-  <nav aria-label="Profils">
-    <a href="/" class="{{ 'actif' if mode == 'agent' }}">Agent</a>
-    <a href="/controle" class="{{ 'actif' if mode == 'controle' }}">Contrôle</a>
-  </nav>
-</header>
 
-<main>
-  {% if msg %}
-  <div class="messages" role="status"><div class="msg {{ niveau }}">{{ msg }}</div></div>
-  {% endif %}
+<div class="hero {{ 'court' if mode != 'agent' }}">
+  <div class="cadre">
+    <div class="bar">
+      <div class="marque"><i aria-hidden="true">🚗</i>Roulez</div>
+      <nav aria-label="Profils">
+        <a href="/" class="{{ 'actif' if mode == 'agent' }}">Agent</a>
+        <a href="/controle" class="{{ 'actif' if mode == 'controle' }}">Contrôle</a>
+      </nav>
+    </div>
 
-{% if mode == 'agent' %}
+    {% if mode == 'agent' %}
+    <div class="vitrine">
+      <div>
+        <h1>Une voiture, un scooter, un vélo : <em>roulez</em> dès aujourd'hui.</h1>
+        <p>Voitures, utilitaires, scooters, trottinettes et vélos dans six grandes villes. Réservez en quelques secondes, rendez quand vous voulez.</p>
+      </div>
+      <svg viewBox="0 0 620 230" role="img" aria-label="Illustration d'une voiture">
+        <defs>
+          <linearGradient id="carros" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4357"/><stop offset="1" stop-color="#1b2130"/></linearGradient>
+          <linearGradient id="vitre" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8fa3c4"/><stop offset="1" stop-color="#52617f"/></linearGradient>
+        </defs>
+        <ellipse cx="310" cy="205" rx="270" ry="14" fill="#000" opacity=".35"/>
+        <path d="M24 158 C24 136 46 128 80 123 L158 112 C184 78 226 58 288 58 L390 58 C444 58 484 88 508 116 L560 124 C592 128 602 142 602 158 L602 170 L24 170 Z" fill="url(#carros)"/>
+        <path d="M190 112 C210 86 242 72 288 72 L348 72 L348 112 Z" fill="url(#vitre)"/>
+        <path d="M362 72 L392 72 C424 74 452 94 468 112 L362 112 Z" fill="url(#vitre)"/>
+        <path d="M24 150 L602 150" stroke="#ff5f00" stroke-width="3" opacity=".9"/>
+        <rect x="566" y="134" width="32" height="9" rx="4" fill="#ffd9bd"/>
+        <rect x="26" y="134" width="22" height="8" rx="4" fill="#ff5f00"/>
+        <g><circle cx="150" cy="172" r="36" fill="#0b0e14"/><circle cx="150" cy="172" r="19" fill="#8a93a6"/><circle cx="150" cy="172" r="7" fill="#0b0e14"/></g>
+        <g><circle cx="480" cy="172" r="36" fill="#0b0e14"/><circle cx="480" cy="172" r="19" fill="#8a93a6"/><circle cx="480" cy="172" r="7" fill="#0b0e14"/></g>
+      </svg>
+    </div>
+    {% else %}
+    <h1 class="titre-court">Tableau de bord</h1>
+    <p class="sous-titre">Profil en lecture seule : la base refuse toute modification.</p>
+    {% endif %}
+  </div>
+</div>
 
-  <section>
-    <h2>Enregistrer une location</h2>
-    <p class="note">Les refus (véhicule pris, permis non valide, dates) viennent directement de la base.</p>
+<div class="cadre">
+  {% if mode == 'agent' %}
+  <section class="reserver">
+    <h2>Réserver un véhicule</h2>
+    <p class="note">Véhicule pris, permis non valide, dates incorrectes : c'est la base qui refuse, avec un message clair.</p>
     <form class="ligne" method="post" action="/louer">
-      <label>Numéro du véhicule <input type="number" name="vehicule_id" min="1" required></label>
-      <label>Numéro du client <input type="number" name="client_id" min="1" required></label>
-      <label>Du <input type="date" name="debut" required></label>
-      <label>Au <input type="date" name="fin" required></label>
+      <label>N° du véhicule <input type="number" name="vehicule_id" min="1" required></label>
+      <label>N° du client <input type="number" name="client_id" min="1" required></label>
+      <label>Départ <input type="date" name="debut" id="debut" required></label>
+      <label>Retour <input type="date" name="fin" id="fin" required></label>
       <button type="submit">Louer</button>
     </form>
   </section>
+  {% endif %}
 
-  <section>
-    <h2>Retrouver un client</h2>
-    <form class="ligne" method="get" action="/">
-      <label>Nom ou prénom <input type="search" name="q" value="{{ q }}" placeholder="Nom12"></label>
-      <button type="submit">Chercher</button>
-    </form>
-    {% if q %}
-      {% if clients %}
-      <div class="scroll"><table>
-        <thead><tr><th class="num">N°</th><th>Nom</th><th>Prénom</th><th>Permis</th></tr></thead>
-        <tbody>{% for c in clients %}
-          <tr><td class="num">{{ c.id }}</td><td>{{ c.nom }}</td><td>{{ c.prenom }}</td>
-              <td>{{ 'valide' if c.permis_valide else 'non valide' }}</td></tr>
-        {% endfor %}</tbody>
-      </table></div>
-      {% else %}<p class="vide">Aucun client ne correspond à « {{ q }} ».</p>{% endif %}
-    {% endif %}
+  {% if msg %}
+  <div role="status"><div class="msg {{ niveau }}">{{ '✔' if niveau == 'ok' else '✖' }} {{ msg }}</div></div>
+  {% endif %}
+
+<main>
+{% if mode == 'agent' %}
+
+  <section class="bloc">
+    <h2 class="t">Notre flotte</h2>
+    <p class="note">Choisissez un véhicule disponible, ou déclarez une panne en un clic.</p>
+    <div class="filtres">
+      <a href="/" class="{{ 'actif' if not statut }}">Tous</a>
+      <a href="/?statut=disponible" class="{{ 'actif' if statut == 'disponible' }}">Disponibles</a>
+      <a href="/?statut=loue" class="{{ 'actif' if statut == 'loue' }}">Loués</a>
+      <a href="/?statut=maintenance" class="{{ 'actif' if statut == 'maintenance' }}">En maintenance</a>
+      <a href="/?statut=hors_service" class="{{ 'actif' if statut == 'hors_service' }}">Hors service</a>
+    </div>
+    <div class="parc">
+      {% for v in flotte %}
+      <article class="vehicule">
+        <div class="vitre" style="background: {{ teintes.get(v.categorie, '#eef0f3') }}">
+          <span class="etat {{ v.statut }}">{{ etats.get(v.statut, v.statut) }}</span>
+          <span aria-hidden="true">{{ icones.get(v.categorie, '🚗') }}</span>
+        </div>
+        <div class="corps">
+          <div>
+            <div class="nom">{{ v.marque }} {{ v.modele }}</div>
+            <div class="sous">{{ v.categorie }} · {{ v.agence }} · N° {{ v.id }}</div>
+          </div>
+          <div class="rang">
+            <div class="prix">{{ v.prix_jour }} € <small>/ jour</small></div>
+            <span class="plaque"><span>{{ v.immatriculation }}</span></span>
+          </div>
+          {% if v.retour_prevu %}<div class="retour">Retour prévu le {{ v.retour_prevu }}</div>{% endif %}
+          {% if v.statut in ('disponible', 'loue') %}
+            <form method="post" action="/panne/{{ v.id }}"><button class="petit" type="submit">Déclarer une panne</button></form>
+          {% elif v.statut == 'maintenance' %}
+            <form method="post" action="/service/{{ v.id }}"><button class="petit" type="submit">Remettre en service</button></form>
+          {% endif %}
+        </div>
+      </article>
+      {% else %}
+      <p class="vide">Aucun véhicule dans cet état.</p>
+      {% endfor %}
+    </div>
   </section>
 
-  <section>
-    <h2>Locations en cours</h2>
+  <section class="bloc">
+    <h2 class="t">Locations en cours</h2>
+    <p class="note">Enregistrez le retour dès que le véhicule est rendu.</p>
+    <div class="tableau">
     {% if locations %}
     <div class="scroll"><table>
       <thead><tr><th class="num">N°</th><th>Véhicule</th><th>Client</th><th>Du</th><th>Au</th>
@@ -125,70 +227,67 @@
       <tbody>{% for l in locations %}
         <tr>
           <td class="num">{{ l.id }}</td>
-          <td>{{ l.vehicule }} <span style="color:var(--discret)">{{ l.immatriculation }}</span></td>
+          <td>{{ l.vehicule }} <span class="plaque"><span>{{ l.immatriculation }}</span></span></td>
           <td>{{ l.client }}</td><td>{{ l.date_debut }}</td>
           <td>{{ l.date_fin_prevue }}{% if l.en_retard %} <span class="retard">en retard</span>{% endif %}</td>
           <td class="num">{{ l.duree_jours }} j</td><td class="num">{{ l.prix_total }} €</td>
-          <td><form method="post" action="/retour/{{ l.id }}">
-                <button class="petit" type="submit">Enregistrer le retour</button></form></td>
+          <td><form method="post" action="/retour/{{ l.id }}"><button class="petit" type="submit">Enregistrer le retour</button></form></td>
         </tr>
       {% endfor %}</tbody>
     </table></div>
-    {% else %}<p class="vide">Aucune location en cours.</p>{% endif %}
+    {% else %}<p class="vide">Aucune location en cours : tous les véhicules sont au parc.</p>{% endif %}
+    </div>
   </section>
 
-  <section>
-    <h2>État de la flotte</h2>
-    <p class="filtres">
-      <a href="/" class="{{ 'actif' if not statut }}">Tous</a>
-      <a href="/?statut=disponible" class="{{ 'actif' if statut == 'disponible' }}">Disponibles</a>
-      <a href="/?statut=loue" class="{{ 'actif' if statut == 'loue' }}">Loués</a>
-      <a href="/?statut=maintenance" class="{{ 'actif' if statut == 'maintenance' }}">En maintenance</a>
-      <a href="/?statut=hors_service" class="{{ 'actif' if statut == 'hors_service' }}">Hors service</a>
-    </p>
-    <div class="scroll"><table>
-      <thead><tr><th class="num">N°</th><th>Immatriculation</th><th>Véhicule</th><th>Catégorie</th>
-        <th>Agence</th><th class="num">Prix/jour</th><th>État</th><th>Retour prévu</th><th></th></tr></thead>
-      <tbody>{% for v in flotte %}
-        <tr>
-          <td class="num">{{ v.id }}</td><td>{{ v.immatriculation }}</td>
-          <td>{{ v.marque }} {{ v.modele }}</td><td>{{ v.categorie }}</td><td>{{ v.agence }}</td>
-          <td class="num">{{ v.prix_jour }} €</td>
-          <td><span class="puce {{ v.statut }}">{{ v.statut|replace('_', ' ') }}</span></td>
-          <td>{{ v.retour_prevu or '' }}</td>
-          <td>
-            {% if v.statut in ('disponible', 'loue') %}
-              <form method="post" action="/panne/{{ v.id }}">
-                <button class="petit" type="submit">Déclarer une panne</button></form>
-            {% elif v.statut == 'maintenance' %}
-              <form method="post" action="/service/{{ v.id }}">
-                <button class="petit" type="submit">Remettre en service</button></form>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}</tbody>
-    </table></div>
+  <section class="bloc">
+    <h2 class="t">Retrouver un client</h2>
+    <p class="note">Un permis valide est indispensable pour louer.</p>
+    <div class="tableau">
+      <form class="ligne" method="get" action="/" style="padding: 14px 0 8px">
+        <label>Nom ou prénom <input type="search" name="q" value="{{ q }}" placeholder="Nom12"></label>
+        <button type="submit">Chercher</button>
+      </form>
+      {% if q %}
+        {% if clients %}
+        <div class="scroll"><table>
+          <thead><tr><th class="num">N°</th><th>Nom</th><th>Prénom</th><th>Permis</th></tr></thead>
+          <tbody>{% for c in clients %}
+            <tr><td class="num">{{ c.id }}</td><td>{{ c.nom }}</td><td>{{ c.prenom }}</td>
+                <td><span class="puce {{ 'disponible' if c.permis_valide else 'maintenance' }}">{{ 'valide' if c.permis_valide else 'non valide' }}</span></td></tr>
+          {% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="vide">Aucun client ne correspond à « {{ q }} ».</p>{% endif %}
+      {% endif %}
+    </div>
   </section>
 
 {% else %}
 
-  <section>
-    <h2>Chiffre d'affaires par catégorie</h2>
-    <p class="note">Profil en lecture seule : la base refuse toute modification.</p>
-    <div class="scroll"><table>
+  {% set maxca = stats|map(attribute='chiffre_affaires')|max if stats else 0 %}
+  <div class="chiffres">
+    <div class="chiffre fort"><b>{{ stats|sum(attribute='chiffre_affaires') }} €</b><span>Chiffre d'affaires total</span></div>
+    <div class="chiffre"><b>{{ flotte|length }}</b><span>Véhicules au parc</span></div>
+    <div class="chiffre"><b>{{ flotte|selectattr('statut', 'equalto', 'disponible')|list|length }}</b><span>Disponibles</span></div>
+    <div class="chiffre"><b>{{ flotte|selectattr('statut', 'equalto', 'loue')|list|length }}</b><span>Loués</span></div>
+  </div>
+
+  <section class="bloc" style="margin-top: 34px">
+    <h2 class="t">Chiffre d'affaires par catégorie</h2>
+    <div class="tableau"><div class="scroll"><table>
       <thead><tr><th>Catégorie</th><th class="num">Véhicules</th><th class="num">Locations terminées</th>
-        <th class="num">Chiffre d'affaires</th></tr></thead>
+        <th class="num">Chiffre d'affaires</th><th></th></tr></thead>
       <tbody>{% for s in stats %}
-        <tr><td>{{ s.categorie }}</td><td class="num">{{ s.nb_vehicules }}</td>
-            <td class="num">{{ s.nb_locations }}</td><td class="num">{{ s.chiffre_affaires }} €</td></tr>
+        <tr><td>{{ icones.get(s.categorie, '🚗') }} {{ s.categorie }}</td><td class="num">{{ s.nb_vehicules }}</td>
+            <td class="num">{{ s.nb_locations }}</td><td class="num">{{ s.chiffre_affaires }} €</td>
+            <td><div class="barre"><i style="width: {{ ((100 * s.chiffre_affaires / maxca)|round(0)|int) if maxca else 0 }}%"></i></div></td></tr>
       {% endfor %}</tbody>
-    </table></div>
+    </table></div></div>
   </section>
 
   <div class="deux">
-    <section>
-      <h2>Dernières opérations</h2>
-      <div class="scroll"><table>
+    <section class="bloc">
+      <h2 class="t">Dernières opérations</h2>
+      <div class="tableau"><div class="scroll"><table>
         <thead><tr><th>Quand</th><th>Location</th><th>Action</th><th>Statut</th><th>Par</th></tr></thead>
         <tbody>{% for j in journal %}
           <tr><td>{{ j.fait_le.strftime('%d/%m %H:%M') }}</td><td class="num">{{ j.location_id }}</td>
@@ -197,23 +296,41 @@
         {% else %}
           <tr><td colspan="5" class="vide">Aucune opération enregistrée.</td></tr>
         {% endfor %}</tbody>
-      </table></div>
+      </table></div></div>
     </section>
 
-    <section>
-      <h2>Flotte</h2>
-      <div class="scroll"><table>
+    <section class="bloc">
+      <h2 class="t">Flotte</h2>
+      <div class="tableau"><div class="scroll"><table>
         <thead><tr><th class="num">N°</th><th>Véhicule</th><th>État</th><th>Retour prévu</th></tr></thead>
         <tbody>{% for v in flotte %}
-          <tr><td class="num">{{ v.id }}</td><td>{{ v.marque }} {{ v.modele }}</td>
-              <td><span class="puce {{ v.statut }}">{{ v.statut|replace('_', ' ') }}</span></td>
+          <tr><td class="num">{{ v.id }}</td><td>{{ icones.get(v.categorie, '🚗') }} {{ v.marque }} {{ v.modele }}</td>
+              <td><span class="puce {{ v.statut }}">{{ etats.get(v.statut, v.statut) }}</span></td>
               <td>{{ v.retour_prevu or '' }}</td></tr>
         {% endfor %}</tbody>
-      </table></div>
+      </table></div></div>
     </section>
   </div>
 
 {% endif %}
 </main>
+</div>
+
+<script>
+  // Dates par défaut : aujourd'hui et demain (le trigger refuse le passé)
+  (function () {
+    var d = document.getElementById('debut'), f = document.getElementById('fin');
+    if (d && f) {
+      var iso = function (n) { var x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+      d.min = f.min = iso(0); d.value = iso(0); f.value = iso(1);
+    }
+    // Le message ne revient pas au rafraîchissement
+    if (location.search.indexOf('msg=') !== -1) {
+      var p = new URLSearchParams(location.search); p.delete('msg'); p.delete('niveau');
+      var s = p.toString();
+      history.replaceState(null, '', location.pathname + (s ? '?' + s : ''));
+    }
+  })();
+</script>
 </body>
 </html>
