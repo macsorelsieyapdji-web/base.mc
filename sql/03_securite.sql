@@ -1,5 +1,38 @@
+-- =====================================================================
+-- PARTIE C · Vues, rôles et privilèges
+-- À lancer APRÈS 01 (tables) et 02 (logique métier).
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 5. LES VUES (celles que l'API FastAPI interroge)
+-- ---------------------------------------------------------------------
+DROP VIEW IF EXISTS v_etat_flotte CASCADE;
+DROP VIEW IF EXISTS v_locations_en_cours CASCADE;
+DROP VIEW IF EXISTS v_clients_agent CASCADE;
+DROP VIEW IF EXISTS v_stats_flotte CASCADE;
+DROP VIEW IF EXISTS v_journal CASCADE;
+
+-- Agent + contrôleur : l'état de la flotte (aucune donnée client)
+CREATE VIEW v_etat_flotte AS
+SELECT v.id,
+       v.immatriculation,
+       ma.nom      AS marque,
+       mo.nom      AS modele,
+       c.libelle   AS categorie,
+       ag.nom      AS agence,
+       v.prix_jour,
+       v.statut,
+       (SELECT max(l.date_fin_prevue)
+        FROM locations l
+        WHERE l.vehicule_id = v.id AND l.statut = 'en_cours') AS retour_prevu
+FROM vehicules v
+JOIN modeles    mo ON mo.id = v.modele_id
+JOIN marques    ma ON ma.id = mo.marque_id
+JOIN categories c  ON c.id  = mo.categorie_id
+JOIN agences    ag ON ag.id = v.agence_id;
+
 -- Agent : locations en cours (nom du client, jamais ses coordonnées)
-CREATE OR REPLACE VIEW v_locations_en_cours AS
+CREATE VIEW v_locations_en_cours AS
 SELECT l.id,
        ma.nom || ' ' || mo.nom                      AS vehicule,
        v.immatriculation,
@@ -16,50 +49,32 @@ JOIN marques   ma ON ma.id = mo.marque_id
 JOIN clients   cl ON cl.id = l.client_id
 WHERE l.statut = 'en_cours';
 
--- Agent : locations en cours (nom du client, jamais ses coordonnées)
-CREATE OR REPLACE VIEW v_locations_en_cours AS
-SELECT l.id,
-       ma.nom || ' ' || mo.nom             AS vehicule,
-       v.immatriculation,
-       cl.prenom || ' ' || cl.nom          AS client,
-       l.date_debut,
-       l.date_fin_prevue,
-       (l.date_fin_prevue < current_date)  AS en_retard,
-       (l.date_fin_prevue - l.date_debut)  AS duree_jours,
-       l.prix_total
-FROM locations l
-JOIN vehicules v  ON v.id  = l.vehicule_id
-JOIN modeles   mo ON mo.id = v.modele_id
-JOIN marques   ma ON ma.id = mo.marque_id
-JOIN clients   cl ON cl.id = l.client_id
-WHERE l.statut = 'en_cours';
-
--- Agent : recherche client. CACHE email, ville, catégorie préférée.
-CREATE OR REPLACE VIEW v_clients_agent AS
+-- Agent : recherche client. CACHE l'e-mail, la ville et la catégorie préférée.
+CREATE VIEW v_clients_agent AS
 SELECT id, nom, prenom, permis_valide
 FROM clients;
 
 -- Contrôleur : agrégats par catégorie, aucune donnée personnelle
-CREATE OR REPLACE VIEW v_stats_flotte AS
-SELECT c.libelle                        AS categorie,
-       count(DISTINCT v.id)             AS nb_vehicules,
-       count(l.id)                      AS nb_locations,
-       coalesce(sum(l.prix_total), 0)   AS chiffre_affaires
+CREATE VIEW v_stats_flotte AS
+SELECT c.libelle                       AS categorie,
+       count(DISTINCT v.id)            AS nb_vehicules,
+       count(l.id)                     AS nb_locations,
+       coalesce(sum(l.prix_total), 0)  AS chiffre_affaires
 FROM categories c
-LEFT JOIN modeles    mo ON mo.categorie_id = c.id
-LEFT JOIN vehicules  v  ON v.modele_id = mo.id
-LEFT JOIN locations  l  ON l.vehicule_id = v.id AND l.statut = 'terminee'
+LEFT JOIN modeles   mo ON mo.categorie_id = c.id
+LEFT JOIN vehicules v  ON v.modele_id = mo.id
+LEFT JOIN locations l  ON l.vehicule_id = v.id AND l.statut = 'terminee'
 GROUP BY c.libelle;
 
 -- Contrôleur : journal d'audit
-CREATE OR REPLACE VIEW v_journal AS
+CREATE VIEW v_journal AS
 SELECT id, location_id, action, ancien_statut, nouveau_statut, fait_par, fait_le
 FROM journal_locations;
 
 -- ---------------------------------------------------------------------
--- 6. RÔLES
+-- 6. LES RÔLES
 -- Les rôles existent pour tout le serveur : on teste avant de créer.
--- Mots de passe factices : les vrais se mettent à la main
+-- Mots de passe factices : les vrais se posent à la main
 -- (ALTER ROLE agent_alice PASSWORD '...'), jamais dans le dépôt public.
 -- ---------------------------------------------------------------------
 DO $$
@@ -76,10 +91,24 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'controleur_bob') THEN
     CREATE ROLE controleur_bob LOGIN PASSWORD 'a_changer_bob' IN ROLE role_controleur;
   END IF;
-END $$;
+END
+$$;
 
--- 1) On part de zéro : aucun droit direct sur les tables
+-- 1) On part de zéro : aucun droit direct sur les tables ni sur les vues
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM role_agent, role_controleur;
+
+-- Sur Supabase, les rôles de l'API publique (anon, authenticated) reçoivent des droits
+-- par défaut : on les retire aussi (ignoré sur un PostgreSQL ordinaire).
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+  END IF;
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON ALL TABLES IN SCHEMA public FROM authenticated;
+  END IF;
+END
+$$;
 
 -- 2) Les procédures sont exécutables par PUBLIC par défaut : on le retire,
 --    sinon le contrôleur pourrait appeler louer()
@@ -92,6 +121,7 @@ REVOKE EXECUTE ON PROCEDURE louer(int, int, date, date),
 -- 3) Droits donnés aux rôles-métiers, jamais à alice ou bob
 GRANT USAGE ON SCHEMA public TO role_agent, role_controleur;
 
+-- Agent : travail courant (lit ses vues, loue, retourne, déclare les pannes)
 GRANT SELECT ON v_etat_flotte, v_locations_en_cours, v_clients_agent
   TO role_agent;
 GRANT EXECUTE ON PROCEDURE louer(int, int, date, date),
@@ -100,6 +130,6 @@ GRANT EXECUTE ON PROCEDURE louer(int, int, date, date),
                            remettre_en_service(int)
   TO role_agent;
 
+-- Contrôleur : lecture seule, aucun EXECUTE, aucune table
 GRANT SELECT ON v_etat_flotte, v_stats_flotte, v_journal
   TO role_controleur;
--- Le contrôleur : lecture seule, aucun EXECUTE, aucune table.

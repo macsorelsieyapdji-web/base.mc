@@ -172,6 +172,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS locations_avant_insert ON locations;
 CREATE TRIGGER locations_avant_insert
 BEFORE INSERT ON locations
 FOR EACH ROW EXECUTE FUNCTION locations_avant_insert();
@@ -191,6 +192,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS locations_apres_insert ON locations;
 CREATE TRIGGER locations_apres_insert
 AFTER INSERT ON locations
 FOR EACH ROW EXECUTE FUNCTION locations_apres_insert();
@@ -208,6 +210,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS locations_avant_update ON locations;
 CREATE TRIGGER locations_avant_update
 BEFORE UPDATE ON locations
 FOR EACH ROW EXECUTE FUNCTION locations_avant_update();
@@ -229,6 +232,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS locations_apres_retour ON locations;
 CREATE TRIGGER locations_apres_retour
 AFTER UPDATE OF statut ON locations
 FOR EACH ROW
