@@ -1,6 +1,6 @@
 # Parc de location de véhicules · Projet SQL avancé (Ycode B2)
 
-**Groupe :** SIEYAPDJI MAC SOREL, ABOUBAKAR DEWA, HOSSAM HASSAM, OUKSILI LYES, RAYEN NOM_DE_FAMILLE
+**Groupe :** SIEYAPDJI MAC SOREL, ABOUBAKAR DEWA, HOSSAM HASSAM, OUKSILI LYES, RAYEN BEN SOUISSI
 
 Une base PostgreSQL pour gérer la location de véhicules motorisés ou non (voitures, utilitaires, scooters, trottinettes, vélos) dans plusieurs grandes villes, avec une appli FastAPI et une page HTML.
 Règle métier à faire respecter : un véhicule indisponible ne se loue pas, et un client sans permis valide non plus.
